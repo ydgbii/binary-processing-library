@@ -1,5 +1,6 @@
 use super::error::EncodeError;
 use super::instruction::add::ADD;
+use super::instruction::sub::SUB;
 use super::instruction::Instruction;
 //encode arm64 instruction to bytes
 pub struct Encoder;
@@ -9,6 +10,11 @@ impl Encoder{
         let encoded = instruction.encode()?;
         Ok(encoded.to_le_bytes())
     }
+    //encodes one sub instruction into four bytes
+    pub fn encode_sub(instruction: &SUB) -> Result<[u8; 4], EncodeError> {
+    let encoded = instruction.encode()?;
+    Ok(encoded.to_le_bytes())
+}
 }
 
 ///tests for the encoder

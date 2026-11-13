@@ -6,6 +6,11 @@ pub struct SharedInstruction {
     pub imm12: u16,
 }
 pub mod add;
+pub mod sub;
+pub enum Arm64Instruction {
+    Add(add::ADD),
+    Sub(sub::SUB),
+}
 
 pub trait Instruction: Sized {
     const MASK: u32; // The mask used to extract the opcode from a 32-bit instruction.
