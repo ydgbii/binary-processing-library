@@ -1,1 +1,4 @@
-pub mod arm64;
+pub mod decoder;
+pub mod encoder;
+pub mod error;
+pub mod instruction;

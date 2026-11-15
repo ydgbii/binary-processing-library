@@ -1,0 +1,100 @@
+use super::error::DecodeError;
+use super::instruction::Instruction;
+
+#[cfg(test)]
+use super::instruction::{IInstruction, add::Add, sub::SUB};
+
+pub fn decode_buffer(bytes: &[u8]) -> Result<Vec<Instruction>, DecodeError> {
+    if bytes.len() % 4 != 0 {
+        return Err(DecodeError::InvalidInputLength);
+    }
+
+    let mut instructions = Vec::new();
+
+    for chunk in bytes.chunks_exact(4) {
+        let word = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+
+        let instruction = Instruction::decode(word)?;
+        instructions.push(instruction);
+    }
+
+    Ok(instructions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_add() {
+        let word = u32::from_le_bytes([0x20, 0x14, 0x00, 0x91]);
+
+        let instruction = Add::decode(word).unwrap();
+
+        assert_eq!(instruction.0.rd.value(), 0);
+        assert_eq!(instruction.0.rn.value(), 1);
+        assert_eq!(instruction.0.imm12.value(), 5);
+    }
+
+    #[test]
+    fn test_invalid_input_length() {
+        let bytes = [0x20, 0x14, 0x00];
+
+        let result = decode_buffer(&bytes);
+
+        assert!(matches!(result, Err(DecodeError::InvalidInputLength)));
+    }
+
+    #[test]
+    fn test_unknown_instruction() {
+        let bytes = [0xFF, 0xFF, 0xFF, 0xFF];
+
+        let result = decode_buffer(&bytes);
+
+        assert!(matches!(result, Err(DecodeError::UnknownInstruction)));
+    }
+
+    /// Test to ensure that decoding a SUB instruction from bytes works correctly.
+
+    #[test]
+    fn test_sub_encoder_decoder_round_trip() {
+        use crate::instruction::{Immediate12, RegisterNumber, SharedInstruction};
+
+        let original = SUB(SharedInstruction {
+            rd: RegisterNumber::new(0).unwrap(),
+            rn: RegisterNumber::new(1).unwrap(),
+            imm12: Immediate12::new(4).unwrap(),
+        });
+
+        let bytes = original.encode().to_le_bytes();
+
+        assert_eq!(bytes, [0x20, 0x10, 0x00, 0xD1]);
+
+        let word = u32::from_le_bytes(bytes);
+        let decoded = Instruction::decode(word).unwrap();
+
+        match decoded {
+            Instruction::Sub(sub) => {
+                assert_eq!(sub.0.rd.value(), 0);
+                assert_eq!(sub.0.rn.value(), 1);
+                assert_eq!(sub.0.imm12.value(), 4);
+            }
+            _ => panic!("Expected SUB instruction"),
+        }
+    }
+
+    #[test]
+    fn test_decode_buffer() {
+        let bytes = [
+            0x20, 0x14, 0x00, 0x91, // ADD X0, X1, #5
+            0x20, 0x10, 0x00, 0xD1, // SUB X0, X1, #4
+        ];
+
+        let instructions = decode_buffer(&bytes).unwrap();
+
+        assert_eq!(instructions.len(), 2);
+
+        assert!(matches!(instructions[0], Instruction::Add(_)));
+        assert!(matches!(instructions[1], Instruction::Sub(_)));
+    }
+}
